@@ -1,0 +1,146 @@
+# Regras do Codex para este repositório: o mesmo que `.claude/settings.json` nega ou pergunta.
+# Só valem com o projeto marcado como confiável no Codex. Teste:
+#   codex execpolicy check --pretty --rules .codex/rules/seguranca.rules -- git push --force
+# O padrão é prefixo exato de argumentos: cobre o jeito comum de escrever o comando, não todos.
+
+# --- Proibido ---------------------------------------------------------------------------------
+
+prefix_rule(
+    pattern = ["git", "push", ["--force", "-f"]],
+    decision = "forbidden",
+    justification = "Reescreve o histórico no GitHub. Use --force-with-lease, que pergunta antes.",
+    match = ["git push --force", "git push -f origin dev"],
+    not_match = ["git push --force-with-lease", "git push origin dev"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", ["origin", "-u"], ["--force", "-f", "+dev", "+main"]],
+    decision = "forbidden",
+    justification = "Reescreve o histórico no GitHub.",
+    match = ["git push origin --force", "git push origin +dev"],
+    not_match = ["git push origin dev"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", ["origin", "-u"], ["dev", "main", "HEAD"], ["--force", "-f"]],
+    decision = "forbidden",
+    justification = "Reescreve o histórico no GitHub, mesmo com a opção depois do ramo.",
+    match = ["git push origin dev --force", "git push origin dev -f"],
+    not_match = ["git push origin dev", "git push origin dev --force-with-lease"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", "origin", ["main", "HEAD:main", "dev:main", "refs/heads/main"]],
+    decision = "forbidden",
+    justification = "A main só recebe o PR de promoção vindo da dev.",
+    match = ["git push origin main", "git push origin HEAD:main"],
+    not_match = ["git push origin dev", "git push origin claude/main-fix"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", "-u", "origin", ["main", "HEAD:main"]],
+    decision = "forbidden",
+    justification = "A main só recebe o PR de promoção vindo da dev.",
+    match = ["git push -u origin main"],
+    not_match = ["git push -u origin dev"],
+)
+
+prefix_rule(
+    pattern = [
+        ["cat", "less", "more", "head", "tail", "bat", "nl", "xxd", "strings"],
+        [".env.keys", "./.env.keys", "~/projects/rendash/.env.keys"],
+    ],
+    decision = "forbidden",
+    justification = ".env.keys abre .env.staging e .env.production. Peça ao dono.",
+    match = ["cat .env.keys", "cat ./.env.keys"],
+    not_match = ["cat .env.development"],
+)
+
+prefix_rule(
+    pattern = ["gh", ["secret", "variable"]],
+    decision = "forbidden",
+    justification = "Segredos e variáveis do repositório . Só o dono mexe.",
+    match = ["gh secret list", "gh variable get DOTENV_PRIVATE_KEY_PRODUCTION"],
+)
+
+prefix_rule(
+    pattern = ["gh", "repo", "delete"],
+    decision = "forbidden",
+    justification = "Apaga o repositório.",
+)
+
+# --- Pergunta antes --------------------------------------------------------------------------
+
+prefix_rule(
+    pattern = ["git", "push", ["--force-with-lease", "--delete", "--mirror"]],
+    decision = "prompt",
+    justification = "Muda ou apaga ramo no GitHub.",
+    match = ["git push --force-with-lease origin dev"],
+)
+
+prefix_rule(
+    pattern = ["git", "push", ["origin", "-u"], ["--force-with-lease", "--delete", "--mirror"]],
+    decision = "prompt",
+    justification = "Muda ou apaga ramo no GitHub.",
+    match = ["git push origin --delete velho"],
+)
+
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "prompt",
+    justification = "Descarta trabalho não salvo.",
+)
+
+prefix_rule(
+    pattern = ["git", ["clean", "restore"]],
+    decision = "prompt",
+    justification = "Descarta trabalho não salvo.",
+)
+
+prefix_rule(
+    pattern = ["git", "branch", "-D"],
+    decision = "prompt",
+    justification = "Apaga ramo sem conferir se foi mesclado.",
+)
+
+prefix_rule(
+    pattern = ["rm", ["-rf", "-fr", "-r", "-R"]],
+    decision = "prompt",
+    justification = "Apaga pasta inteira.",
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", "merge"],
+    decision = "prompt",
+    justification = "Quem mescla na main é o dono.",
+)
+
+prefix_rule(
+    pattern = ["gh", ["api", "workflow"]],
+    decision = "prompt",
+    justification = "Pode mudar o repositório, as checagens ou disparar publicação.",
+)
+
+prefix_rule(
+    pattern = ["gh", "run", ["cancel", "rerun"]],
+    decision = "prompt",
+    justification = "Mexe no CI.",
+)
+
+# --- Rendash: banco e publicação (espelho do `ask` do settings.json) ----------------------------
+
+prefix_rule(
+    pattern = ["npx", "prisma", ["migrate", "db"], ["reset", "deploy", "push", "execute"]],
+    decision = "prompt",
+    justification = "Altera ou apaga dados do banco. Confirme o ambiente com o dono.",
+    match = ["npx prisma migrate reset", "npx prisma db push"],
+    not_match = ["npx prisma generate"],
+)
+
+prefix_rule(
+    pattern = ["npx", ["eas", "vercel"]],
+    decision = "prompt",
+    justification = "Publica build ou deploy; produção só com o dono.",
+    match = ["npx eas build", "npx vercel --prod"],
+    not_match = ["npx expo start"],
+)

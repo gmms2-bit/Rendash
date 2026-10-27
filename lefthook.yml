@@ -1,0 +1,23 @@
+# Ganchos do git (instalados pelo `prepare` do package.json). O que é determinístico roda aqui e no
+# CI. Pular uma vez, com motivo: LEFTHOOK=0 git commit ...
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: "*.{ts,tsx,js,mjs,cjs,json,jsonc,css}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched --diagnostic-level=error {staged_files}
+      stage_fixed: true
+    segredos:
+      run: node scripts/check-secrets.mjs {staged_files}
+    # Os agentes do Codex saem dos do Claude: gera os .toml e barra o commit até eles entrarem junto.
+    agentes:
+      glob: ".claude/agents/*.md"
+      run: >-
+        node scripts/agents-sync.mjs &&
+        if git status --porcelain .codex/agents | grep -qv '^[AMD] '; then
+        echo 'Agentes do Codex gerados: git add .codex/agents e commite de novo.'; exit 1; fi
+
+pre-push:
+  commands:
+    tipos:
+      run: pnpm typecheck

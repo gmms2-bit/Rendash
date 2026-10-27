@@ -1,0 +1,97 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    # Uma revisão por PR, ao abrir: revisar a cada envio gastava minutos sem necessidade.
+    # `labeled` deixa o dono pedir a revisão com o rótulo `claude-review`.
+    types: [opened, ready_for_review, reopened, labeled]
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "src/**/*.ts"
+    #   - "src/**/*.tsx"
+    #   - "src/**/*.js"
+    #   - "src/**/*.jsx"
+
+# A revisão de todo PR é do Codex (app do GitHub, cota do ChatGPT; ver AGENTS.md, "Revisão de PR").
+# O Claude só revisa o que é caro errar, para poupar a cota do plano: dinheiro e tesouraria,
+# segurança, permissões e autenticação, ou PR com o rótulo `claude-review`.
+jobs:
+  gate:
+    # Fork e Dependabot (sem segredos) e o PR de promoção dev → main (já revisto envio a envio) ficam de fora.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && !(github.head_ref == 'dev' && github.base_ref == 'main')
+      && (!github.event.pull_request.draft || (github.event.action == 'labeled' && github.event.label.name == 'claude-review'))
+      && (github.event.action != 'labeled' || github.event.label.name == 'claude-review')
+    runs-on: ubuntu-latest  # AJUSTE: runner próprio, se houver
+    concurrency:
+      group: review-gate-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      revisar: ${{ steps.decide.outputs.revisar }}
+    steps:
+      - name: Decide se o Claude revisa
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          revisar=false
+          case ",$LABELS," in *,claude-review,*) revisar=true ;; esac
+          if [ "$revisar" = false ]; then
+            # O runner não tem `gh`: curl na API. Se a lista falhar, revisa (melhor gastar cota que deixar passar).
+            arquivos=$(mktemp)
+            for pagina in 1 2 3 4 5 6 7 8 9 10; do
+              resposta=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/pulls/$PR/files?per_page=100&page=$pagina") || { revisar=true; break; }
+              printf '%s' "$resposta" | grep -o '"filename": *"[^"]*"' >> "$arquivos" || break
+            done
+            # AJUSTE: acrescente ao grep abaixo os caminhos sensíveis do projeto.
+            # Caminhos sensíveis: dinheiro/tesouraria, segurança, permissões, autenticação, segredos.
+            if [ "$revisar" = false ] && sed 's/^"filename": *"//; s/"$//' "$arquivos" \
+              | grep -Eiq '(^|/)(wallet|ledger|treasury|tesouraria|saldo|repasse|saque|payout|payments?|pix|billing|checkout|orders?|pedidos?|auth|session|permissions?|permiss|rbac|crypto|secrets?|security|seguranca|middleware)([-_./]|$)|^\.github/workflows/|^\.env\.|^db/(schema|migrations)'; then
+              revisar=true
+            fi
+          fi
+          echo "revisar=$revisar" >> "$GITHUB_OUTPUT"
+
+  claude-review:
+    needs: gate
+    if: needs.gate.outputs.revisar == 'true'
+    runs-on: ubuntu-latest  # AJUSTE: runner próprio, se houver
+    # Teto para a revisão não segurar o CI.
+    timeout-minutes: 20
+    concurrency:
+      group: review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+
