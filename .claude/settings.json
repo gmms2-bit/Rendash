@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest*)",
+      "Bash(npx biome *)",
+      "Bash(node --version)",
+      "Bash(node scripts/*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git fetch*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh pr diff*)",
+      "Bash(gh run list*)",
+      "Bash(gh run view*)",
+      "Bash(gh run watch*)",
+      "Bash(gh issue list*)",
+      "Bash(gh issue view*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(curl -sf http://localhost:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:code.claude.com)",
+      "Edit(/.github/workflows/**)",
+      "Bash(npx prisma generate*)",
+      "Bash(npx prisma migrate dev*)",
+      "Bash(npx prisma validate*)",
+      "Bash(npx prisma format*)",
+      "Bash(npx expo *)",
+      "Bash(npx turbo *)",
+      "Bash(bash scripts/setup.sh)",
+      "WebFetch(domain:docs.expo.dev)",
+      "WebFetch(domain:nextjs.org)",
+      "WebFetch(domain:www.prisma.io)",
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:developer.apple.com)",
+      "WebFetch(domain:www.nativewind.dev)"
+    ],
+    "ask": [
+      "Bash(git push *--force-with-lease*)",
+      "Bash(git push * --delete *)",
+      "Bash(git push * --mirror*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean *)",
+      "Bash(git branch -D *)",
+      "Bash(git checkout -- *)",
+      "Bash(git restore *)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(gh pr merge*)",
+      "Bash(gh api *)",
+      "Bash(gh workflow *)",
+      "Bash(gh run cancel*)",
+      "Bash(gh run rerun*)",
+      "Read(.env.local)",
+      "Read(.env.*.local)",
+      "Bash(npx prisma migrate reset*)",
+      "Bash(npx prisma migrate deploy*)",
+      "Bash(npx prisma db push*)",
+      "Bash(npx prisma db execute*)",
+      "Bash(npx eas build*)",
+      "Bash(npx eas submit*)",
+      "Bash(npx eas update*)",
+      "Bash(npx vercel *)"
+    ],
+    "deny": [
+      "Read(.env.keys)",
+      "Read(./**/.env.keys)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/*.p12)",
+      "Bash(cat *.env.keys*)",
+      "Bash(head *.env.keys*)",
+      "Bash(tail *.env.keys*)",
+      "Bash(grep * *.env.keys*)",
+      "Bash(less *.env.keys*)",
+      "Bash(more *.env.keys*)",
+      "Bash(git push --force)",
+      "Bash(git push --force *)",
+      "Bash(git push * --force)",
+      "Bash(git push * --force *)",
+      "Bash(git push -f)",
+      "Bash(git push -f *)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push * +*)",
+      "Bash(git push * main)",
+      "Bash(git push * main *)",
+      "Bash(git push *:main)",
+      "Bash(git push *:main *)",
+      "Bash(git push *refs/heads/main*)",
+      "Bash(gh repo delete*)",
+      "Bash(gh secret *)",
+      "Bash(gh variable *)",
+      "Read(./**/.env)",
+      "Read(./**/.env.production*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/after-edit.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session-start.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
