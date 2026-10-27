@@ -1,63 +1,57 @@
 # Arquitetura — Rendash
 
+## Fase atual: mockup front-end animado
+
+Decisão do dono em 27/10/2026: todos os dados são fictícios e locais. Construir web e mobile com fluxos interativos, cobrindo as 46 páginas/variantes do PDF e experiências adicionais. As seções abaixo definem o alvo de implementação; `STATUS.md` registra o que existe e foi executado.
+
+Não implementar Prisma, Postgres, API real, autenticação real, provedores financeiros, SMS, e-mail ou push nesta fase. Os contratos de API continuam documentados em `DADOS.md` como alvo futuro. A decisão prevalece sobre referências anteriores a backend em SPEC, TELAS e skills.
+
 ## Monorepo (Turborepo + pnpm)
 
-```
+```text
 rendash/
 ├─ apps/
-│  ├─ web/            Next.js (App Router): site, painel web e API (route handlers, serverless na Vercel)
-│  └─ mobile/         Expo (React Native, Expo Router), Android e iOS, NativeWind
+│  ├─ web/            Next.js App Router, Tailwind, Framer Motion; alvo Vercel
+│  └─ mobile/         Expo, React Native, Expo Router, NativeWind; iOS e Android
 ├─ packages/
-│  ├─ db/             Prisma schema, migrações, client singleton, seed
-│  ├─ core/           Regras de negócio puras: dinheiro, projeções, IR, carteira, razão, classificação
-│  ├─ api-contract/   Schemas zod + tipos dos endpoints (compartilhados web/mobile/servidor)
-│  ├─ ui-tokens/      Tokens de design (cores, raios, espaçamento, tipografia, motion) + preset Tailwind
-│  ├─ ui-web/         Componentes React (Tailwind) estilo iOS/Liquid Glass
-│  ├─ ui-native/      Componentes RN (NativeWind) com a mesma API
-│  └─ config/         tsconfig, biome, tailwind preset
+│  ├─ core/           Tipos, seletores, dinheiro, validações e transições simuladas
+│  ├─ fixtures/       Dados fictícios tipados e cenários determinísticos
+│  ├─ ui-tokens/      Cores, raios, espaço, tipografia, motion e preset Tailwind
+│  ├─ ui-web/         Componentes React de vidro e motion
+│  ├─ ui-native/      Componentes RN equivalentes, com fallback sólido
+│  └─ config/         Configurações compartilhadas de tipos e ferramentas
 ├─ docs/  .claude/  .codex/  scripts/  AGENTS.md  CLAUDE.md
 ├─ turbo.json  pnpm-workspace.yaml  package.json
 ```
 
-Regra de dependência: `apps/*` → `ui-*`, `api-contract`, `core`, `db` (só web). `core` não importa framework. Mobile nunca importa `db`; fala só com a API HTTP. `api-contract` é a única fonte dos tipos entre cliente e servidor.
+Dependências: `core` é independente de frameworks e fixtures; `fixtures` depende somente dos tipos de `core`. Componentes dependem dos tokens e helpers de apresentação. Apps compõem fixtures, core e componentes. Nenhum pacote acessa banco ou provedor externo. `packages/db` e `packages/api-contract` ficam para a fase futura.
 
-## Stack e decisões
+## Dados e estado
 
-| Camada | Escolha | Por quê |
-|---|---|---|
-| Monorepo | Turborepo + pnpm | pedido do dono; cache de build e `turbo run` por pacote |
-| Web/API | Next.js App Router na Vercel | pedido; route handlers viram funções serverless; mesmo repositório do painel web |
-| Mobile | Expo + Expo Router + EAS Build/Submit/Update | pedido; Android/iOS, OTA para JS |
-| Estilo | Tailwind (web) + NativeWind (mobile) sobre tokens comuns | pedido; uma fonte de tokens |
-| Banco | Postgres (Vercel Postgres/Neon) + Prisma | pedido; migrações geradas |
-| Validação | zod em todas as bordas | invariante de segurança |
-| Estado/dados mobile | TanStack Query + Zustand (UI local) | cache e revalidação de saldos |
-| Gráficos | `react-native-skia` + `victory-native` (mobile), `recharts` ou SVG próprio (web) | linhas e barras das telas |
-| Auth | e-mail+senha (argon2id) + sessão por token de acesso curto e refresh rotativo; biometria local via `expo-local-authentication` destrava o refresh guardado em `expo-secure-store` | telas 2, 3, 22 |
-| Testes | Vitest (core, api), Playwright (web), Maestro (mobile E2E) | |
-| Observabilidade | logs estruturados sem PII; Sentry opcional | invariante 4 |
+Fixtures tipadas cobrem todos os módulos e estados carregando, vazio, erro recuperável e sucesso. Os apps carregam um cenário inicial determinístico e mantêm o estado da demonstração em memória, com ação para reiniciar. Nenhum dado financeiro ou pessoal real é persistido.
 
-Confirmar versões na hora (`npx expo install`, `pnpm view`): não fixe número deste documento.
+A interface envia intenções ao core; cálculos monetários, filtros por dono/contexto, validação de valores, idempotência e lançamentos locais ficam no core. Centavos inteiros em todo o domínio, formatação BRL somente na apresentação. Simulação de investimento, resgate e pagamento deve atualizar os resumos relacionados de forma consistente e permitir reinício.
 
-## Camadas da API (apps/web/src)
+Login, OTP, biometria, consentimento e conexão bancária são fluxos fictícios, identificados como demonstração. O app não deve pedir credenciais reais nem apresentar um pagamento ou uma conexão como reais. Mensagens de sucesso indicam explicitamente a simulação.
 
-`app/api/**/route.ts` (valida zod, autentica, checa dono) → `server/services/*` (orquestra, transação) → `packages/core` (regra pura) + `packages/db` (Prisma). Erros de domínio: `{ code, message }` com códigos estáveis (ex.: `INSUFFICIENT_FUNDS`, `OF_PROVIDER_TIMEOUT`= OF-408). Paginação por cursor. Valores monetários na API como string de centavos (`"350000"`), moeda sempre BRL.
+## Design e motion
 
-## Vercel serverless
+Tokens únicos em `packages/ui-tokens`, compartilhados por Tailwind web e NativeWind. Estética dark, Liquid Glass e verde-água de `DESIGN.md`, com as imagens locais como referência principal. “iOS 27” é inspiração visual, não garantia de API nativa.
 
-- Funções stateless; conexão com pooling (`POSTGRES_PRISMA_URL`), `PrismaClient` singleton; `DIRECT_URL` só para migração.
-- Tarefas longas (sincronizar banco, importar 2.847 transações): **Vercel Cron + fila** (Upstash QStash ou Vercel Queues); a API devolve `syncId` e o app consulta progresso (tela 26). Nunca segure a requisição.
-- Webhooks do provedor Open Finance: verificar assinatura, idempotência por `eventId`.
-- Preview por PR, produção só pela `main`. Banco de preview separado (branch do Neon).
+Framer Motion no web; Reanimated e Moti no mobile. Projetar transições de navegação e elementos compartilhados, springs em botões/cards, gestos de swipe e arrastar para confirmar, pull-to-refresh simulado, números animados, skeletons, vazios animados, sheets com detentes, indicador animado nas abas e haptics quando suportados. Respeitar `prefers-reduced-motion`/Reduzir movimento, foco, alvos de toque e alternativa acessível para gestos. Vidro usa fallback sólido no Android e ao reduzir transparência.
 
-## Mobile (Expo)
+Consultar Mobbin e Refero quando os MCPs estiverem disponíveis e autenticados. Ausência é registrada em STATUS sem bloquear a implementação. Inspirações de Uiverse, Aceternity e Magic UI exigem conferir a licença antes de copiar código; ideias podem ser recriadas. Tokens de acesso ficam somente em configuração local.
 
-Expo Router com grupos `(auth)`, `(onboarding)`, `(tabs)` [Início, Carteira, Rendimentos, Mercado, Perfil], e pilhas por módulo. Bottom tab flutuante em vidro (ver `DESIGN.md`). Deep links `rendash://`. Biometria, `expo-secure-store`, `expo-blur`, `expo-haptics`, notificações push via Expo Notifications. Dev client (EAS) porque há módulos nativos (Skia, blur). Perfis EAS: `development`, `preview`, `production`.
+## Execução e validação planejadas
 
-## Segurança
+Confirmar versões na documentação oficial e nos pacotes; dependências Expo via `npx expo install`. Scripts alvo: `pnpm dev`, `pnpm dev:mobile`, `pnpm build`, `pnpm check` (lint, tipos e testes). Testes de core cobrem centavos, limites, isolamento, repetição/concorrência simulada e consistência do estado; testes de interface cobrem mensagens inteiras, navegação, estados e redução de movimento. Comparar telas com referências em 390×844 e validar layout web responsivo.
 
-Ver invariantes. Além: TLS only, CSP no web, rate limit (Upstash) em login/OTP/investir, OTP SMS com 6 dígitos e expiração 5 min, bloqueio progressivo, consentimento Open Finance com validade (12 meses) e revogação, trilha de auditoria (`AuditLog`) para toda operação sensível, mascaramento de CPF/PAN, exclusão/exportação de dados (LGPD).
+Vercel é o destino futuro do web; EAS é o destino de builds mobile. Não fazer deploy, publicar build nem alterar produção nesta tarefa. Commits pequenos por etapa e um PR com base `dev`, após check e testes específicos, sem esperar CI.
 
-## Sequência de construção sugerida
+## Backend futuro (não implementado)
 
-1. Scaffold monorepo + CI + `ui-tokens` · 2. `packages/db` + auth · 3. Design system (componentes da Fase 1 em `DESIGN.md`) · 4. Onboarding/Auth (telas 1–6) · 5. Início/Carteira/Rendimentos (7–13) · 6. Investir/Resgatar (14–16) · 7. Mercado/Metas/Extrato/Notificações/Perfil (17–22) · 8. Open Finance (23–31) · 9. Extrato unificado, Pix, categorias (34–38) · 10. Empresa (32–33) · 11. Cartão (39–46).
+Após nova decisão do dono: API Next.js com validação, autenticação e autorização; contratos zod compartilhados; Prisma/Postgres com isolamento por usuário/contexto, pooling e client singleton. Valores revalidados no servidor, razão imutável e idempotência na mesma transação. Biometria real e prova revalidada no servidor para ações sensíveis; segredos cifrados e fora de logs/respostas. Provedores financeiros, filas, webhooks e consentimentos reais serão avaliados nessa fase. Ver invariantes em AGENTS e contratos em DADOS.
+
+## Etapas
+
+(a) Documentação da fase mockada · (b) Scaffold Turborepo com web, mobile, core, fixtures e tokens · (c) Design system base e motion · (d) Telas e fluxos web · (e) Telas e fluxos mobile · (f) Testes, check e revisão. Cada etapa só é concluída após conferir o que foi implementado; o estado fica exclusivamente em STATUS.

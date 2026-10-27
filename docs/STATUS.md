@@ -1,26 +1,33 @@
 # STATUS — Rendash
 
-Atualizado em 27/10/2026. Fase: **documentação e base de agentes concluídas; nenhum código de app existe ainda.**
+Atualizado em 27/10/2026. Fase: **mockup front-end animado com dados 100% fictícios; nenhum código de app existe ainda.**
 
 ## Existe (conferido nos arquivos)
 
-- Kit de agentes adaptado: `AGENTS.md` global, `CLAUDE.md`, `SECURITY.md`, `.claude/` (settings, hooks, 8 agentes, skills), `.codex/` (config, regras, agentes gerados), lefthook, workflows de PR, `scripts/`.
-- Skills do projeto: `monorepo-turbo`, `design-system-ios`, `telas-rendash`, `expo-mobile`, `nextjs-api`, `prisma-postgres`, `dinheiro-brl`, `open-finance` (+ `rota`, `auditoria` do kit).
-- Documentação: `SPEC`, `ARQUITETURA`, `TELAS` (46 páginas), `DESIGN`, `DADOS`; imagens de referência em `docs/telas/ref/`.
+- Kit de agentes: AGENTS, CLAUDE, SECURITY, skills, revisores, hooks, workflows e scripts.
+- Documentos SPEC, ARQUITETURA, TELAS (46 páginas), DESIGN, DADOS e referências em `docs/telas/ref/`.
+- Etapa (a): AGENTS, ARQUITETURA e DADOS descrevem fixtures tipadas, regras simuladas no core e contratos/backend exclusivamente futuros. Não há Prisma, Postgres ou API implementados.
+- Worktree na branch `feat/mockup-frontend`.
 
-## Falta (próximos passos, na ordem de `ARQUITETURA.md`)
+## Falta (etapas do brief)
 
-1. Criar o repositório no GitHub (ex.: `rendash`), copiar esta pasta, `bash scripts/setup.sh`, criar branch `dev`.
-2. Scaffold do monorepo (skill `monorepo-turbo`), CI, `ui-tokens`.
-3. `packages/db` + auth; design system fase 1–4; telas por módulo.
-4. Trocar `MODELO_CODEX`/`MODELO_CODEX_LEVE` em `scripts/agents-sync.mjs` e `modeloCodex` em `~/.config/rota.json` pelos modelos da conta Codex; rodar `node scripts/agents-sync.mjs`.
-5. Ligar o app do Codex no repositório e criar o segredo `CLAUDE_CODE_OAUTH_TOKEN`.
+1. (b) Scaffold Turborepo: Next.js web, Expo mobile, ui-tokens, core e fixtures.
+2. (c) Design system compartilhando tokens, componentes e motion acessível.
+3. (d) Web: todas as 46 páginas/variantes, fluxos completos com estado local e experiências adicionais.
+4. (e) Mobile: mesma cobertura em iOS/Android, gestos, haptics e redução de movimento.
+5. (f) Testes de core e interfaces, `pnpm check`, comparação visual e revisões. Nenhuma tela foi validada rodando.
+6. Commits por etapa, envio único e PR com base `dev`. Sem deploy e sem esperar CI.
 
-## Perguntas em aberto (decisão provisória entre parênteses)
+## Limitações verificadas nesta sessão
 
-- Provedor de Open Finance (simulado até decidir).
-- Provedor de cotações e de SMS/e-mail (simulados).
-- Conta e cartão Rendash: parceiro BaaS real ou apenas simulação na v1 (simulação).
-- Etapa 3 do cadastro, ausente no PDF (criar senha + biometria).
-- Enviar Pix: fora da v1 (só comprovante).
-- Nome do repositório e da organização Vercel/Expo.
+- `scripts/rota.mjs` roda, mas não encontra `~/.local/share/rota-uso/uso.json`: recomenda esperar com reset desconhecido e modelo placeholder `MODELO_CODEX`. Nenhuma cota real foi confirmada. O dono pediu explicitamente retomar e executar a etapa (a).
+- Mobbin foi consultado: o MCP recusou a pesquisa por exigir plano pago. Refero não está exposto nas ferramentas desta sessão. Referências externas pendentes; nenhum token foi lido ou gravado.
+- Escrita dos quatro documentos e `git diff --check` funcionaram. O commit falhou ao criar `/home/guicker/projects/Rendash/.git/worktrees/Rendash-mockup/index.lock`: metadados do worktree fora das raízes com escrita. Nenhum commit ou PR foi criado.
+- Roteamento da etapa (b), scaffold: executor Claude/Sonnet, sem espera. Não há executor Claude disponível nesta sessão; scaffold não iniciado.
+- O registro de andamento pelo `work_state_write` foi rejeitado por exigir aprovação numa sessão com política `never`.
+
+## Perguntas em aberto
+
+- Etapa 3 do cadastro, ausente no PDF: manter proposta de senha + biometria simuladas.
+- Definir quais fluxos extras entram além da cobertura das 46 páginas; priorizar navegação e ações já previstas no catálogo.
+- Organizações/projetos Vercel e Expo ficam para a publicação futura. Provedores reais e persistência ficam adiados; não bloqueiam o mockup.

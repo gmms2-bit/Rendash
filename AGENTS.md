@@ -4,19 +4,29 @@ App de finanças pessoais e empresariais em português do Brasil: consolida inve
 
 Este arquivo vale para o Claude Code, o Codex e qualquer outro LLM (o `CLAUDE.md` só o importa). Pastas com regra própria têm um `AGENTS.md` curto com o que vale só ali.
 
-**Fase atual: documentação e base de agentes. O app ainda não foi construído.** Leia `docs/STATUS.md` antes de qualquer coisa.
+**Fase atual: mockup front-end animado, com dados 100% fictícios.** Leia `docs/STATUS.md` antes de qualquer coisa.
+
+## Escopo atual (decisão do dono, 27/10/2026)
+
+- Construir web (Next.js) e mobile (Expo, iOS/Android) em Turborepo, com as 46 páginas/variantes do PDF cobertas e fluxos adicionais.
+- Todos os dados vêm de `packages/fixtures`, com tipos compartilhados e cenários determinísticos de carregamento, vazio, erro e sucesso. Nenhum Prisma, Postgres, API real ou provedor externo nesta fase.
+- `packages/core` concentra cálculos, validações e transições da simulação; interfaces só apresentam dados e disparam intenções. Estado local reiniciável, sem dinheiro real.
+- Login, OTP, biometria, conexão bancária e pagamentos são demonstrações identificadas como simulação. Não coletar credenciais nem dados pessoais reais; não afirmar autenticação, conexão ou pagamento real.
+- Contratos HTTP e persistência em `docs/DADOS.md` são alvo futuro. Instruções antigas em SPEC, TELAS e skills sobre API, banco e seed devem ser lidas nesse contexto; esta decisão prevalece.
+- Motion: Framer Motion no web; Reanimated e Moti no mobile, com gestos, sheets, microinterações, haptics e redução de movimento. Tokens únicos em `packages/ui-tokens`.
+- Referências: imagens locais, Mobbin e Refero. Se os MCPs não estiverem disponíveis/autenticados, registrar a ausência em STATUS e prosseguir; tokens somente na configuração local.
 
 ## Invariantes
 
 Uma mudança que quebre um destes está errada, mesmo com os testes passando.
 
-1. O servidor calcula e valida todo valor (investir, resgatar, pagar fatura, limite). Valor vindo do cliente nunca é confiado.
-2. Dinheiro é inteiro em centavos (`BigInt`/`Int` no banco, string na API). Nunca `float`. Formatação em BRL só na interface.
+1. Nesta fase, `packages/core` calcula e valida valores da simulação. Na integração real, o servidor deve recalcular e validar todo valor; valor vindo do cliente nunca é confiado.
+2. Dinheiro é inteiro em centavos (`bigint` ou inteiro seguro nas fixtures/core, string de centavos nos contratos futuros). Nunca `float`. Formatação em BRL só na interface.
 3. Toda linha de negócio pertence a um usuário (`userId`) e, quando for o caso, a um contexto (`PERSONAL` ou `BUSINESS` com `organizationId`). Consulta sem esse filtro é falha.
-4. Segredo (token Open Finance, CPF completo, dados do cartão) fica cifrado no banco e fora de log e resposta. CPF/PAN aparecem sempre mascarados.
-5. Interface (web e mobile) não tem regra de negócio: só formata o que a API entrega. Regras vivem em `packages/core`.
-6. Operação sensível (investir/resgatar acima de R$ 1.000, alterar limite, ver dados do cartão virtual, desbloquear) exige confirmação biométrica no app e é revalidada no servidor.
-7. Operação financeira é idempotente (`Idempotency-Key`) e gera lançamento imutável no razão na mesma transação.
+4. Fixtures contêm apenas identidades fictícias e CPF/PAN mascarados; nenhum segredo real. No backend futuro, segredos devem ser cifrados e ficar fora de logs e respostas.
+5. Interface (web e mobile) não tem regra de negócio: só apresenta o que fixtures/core entregam (API no futuro). Regras vivem em `packages/core`.
+6. Operação sensível (investir/resgatar acima de R$ 1.000, alterar limite, ver dados do cartão virtual, desbloquear) exige confirmação explicitamente simulada no mockup. Na integração real, exige biometria no app e revalidação no servidor.
+7. A simulação de operação financeira é idempotente e gera lançamento imutável no estado local pelo core. Na integração real: `Idempotency-Key` e razão na mesma transação do banco.
 8. Design: segue `docs/DESIGN.md` (dark, Liquid Glass, verde-água como acento). Nenhum valor de cor, raio ou espaçamento solto: só tokens de `packages/ui-tokens`.
 
 ## Documentos
@@ -27,7 +37,7 @@ Uma mudança que quebre um destes está errada, mesmo com os testes passando.
 | `docs/ARQUITETURA.md` | monorepo, stack, camadas, deploy (Vercel/EAS), segurança, onde está cada coisa |
 | `docs/TELAS.md` | catálogo das 46 telas do PDF: rota, componentes, dados, estados, fluxos |
 | `docs/DESIGN.md` | design system estilo iOS (Liquid Glass): tokens, componentes, motion, acessibilidade |
-| `docs/DADOS.md` | modelo de dados Prisma e contratos de API |
+| `docs/DADOS.md` | fixtures tipadas; modelo e contratos de API futuros |
 | `docs/STATUS.md` | o único lugar com estado: o que existe, o que falta, próximos passos, perguntas |
 | `docs/telas/ref/` | imagens de referência (uma por página do PDF original) |
 | `SECURITY.md` | diretrizes de segurança para revisão de PR |
@@ -38,22 +48,20 @@ Não crie outros documentos. Requisito novo entra no `SPEC`; decisão técnica n
 
 ```bash
 pnpm install          # dependências e ganchos do git
-pnpm dev              # apps/web (Next.js + API) via Turborepo
+pnpm dev              # apps/web (Next.js com fixtures) via Turborepo
 pnpm dev:mobile       # apps/mobile (Expo)
-pnpm db:migrate       # prisma migrate dev (packages/db)
 pnpm check            # lint + tipos + testes (turbo run lint typecheck test)
 ```
 
-Variáveis: `.env.example` documenta; valores reais ficam na Vercel/EAS e em `.env.local` (nunca no git). Segredo real nunca entra no git em texto puro. Nunca leia nem exiba `.env*`.
+O mockup deve funcionar sem variáveis secretas. Na integração futura, valores reais ficam na Vercel/EAS e em configuração local, nunca no git. Nunca leia nem exiba `.env*`.
 
 ## Fluxo de trabalho
 
 - Ramos: `main` (publicado) e `dev` (onde se trabalha). **PRs vão para a `dev`.** A `main` só recebe o PR de promoção da `dev`. Nunca envie direto para a `main` nem reescreva histórico publicado.
-- Um envio por tarefa. Antes de enviar, rode só o teste do arquivo que mudou.
+- Commits pequenos por etapa; um envio por tarefa. Antes de enviar, rode `pnpm check` e o teste específico do que mudou. Sem deploy e sem esperar CI.
 - Não espere CI nem deploy. No fim, confira `gh run list --status failure --limit 5`.
 - Formatação, lint, segredo e tipos são dos ganchos (lefthook). Leia o erro que eles devolvem.
 - Armadilhas do stack:
-  - Prisma na Vercel serverless: use um único `PrismaClient` por processo (`globalThis`) e a URL com pooling (`POSTGRES_PRISMA_URL`); migração com a URL direta (`POSTGRES_URL_NON_POOLING`). Nunca `migrate dev` em produção: `migrate deploy`.
   - Expo: versões vêm de `npx expo install`, nunca à mão. Módulo nativo novo exige novo build EAS (dev client), não só OTA.
   - NativeWind e Tailwind web compartilham tokens de `packages/ui-tokens`; não duplique o `tailwind.config`.
   - Fonte, `BlurView` e efeitos de vidro são caros no Android: tenha fallback sólido (ver skill `design-system-ios`).
@@ -68,7 +76,7 @@ Revisão com a cota dos planos, nunca com API paga. Todo PR (para a `dev`) é re
 - Quebra de qualquer invariante acima é P0, mesmo com testes passando.
 - Dinheiro: valor vindo de fora, float, operação repetível, falta de teste concorrente, saldo lido e escrito fora de transação.
 - Segurança: dado sem dono, segredo/CPF/PAN em log ou resposta, entrada sem validação (zod), rota sem checagem de permissão, consentimento Open Finance ignorado.
-- Texto ao usuário que afirma o que não aconteceu ("Pago", "Conectado" sem confirmação do servidor). Migração feita à mão em vez de gerada.
+- Texto ao usuário que afirma operação real no mockup. Estados como "Pago" ou "Conectado" precisam estar identificados como simulação; na integração futura, dependem da confirmação do servidor.
 - Tela sem estados (vazio, carregando, erro) ou com cor/raio solto fora dos tokens.
 - Não aponte estilo nem formatação.
 
