@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rendash · Protótipo interativo</title>
+<meta name="description" content="Protótipo interativo do Rendash: clique nos botões para navegar pelas 46 telas.">
+<style>
+:root{--bg:#0b0d14;--panel:#12151f;--line:#232838;--txt:#e8ecf5;--mut:#8a93a8;--acc:#19d3b0}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.logo{width:30px;height:30px;border-radius:9px;background:#05060a;border:1px solid var(--line);display:grid;place-items:center;font-weight:700;font-size:18px;color:#fff}
+header h1{font-size:15px;font-weight:600}
+header small{color:var(--mut);font-size:12px;display:block}
+.sp{flex:1}
+.tb{display:flex;gap:6px;align-items:center}
+.tb button,.pnl button,.pnl select,.pnl input{font:inherit;font-size:13px;color:var(--txt);background:#1a1f2e;border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer}
+.tb button:hover,.pnl button:hover{border-color:var(--acc)}
+.tb button[aria-pressed=true]{background:#17302e;color:var(--acc);border-color:var(--acc)}
+.tb button:disabled{opacity:.4;cursor:default}
+button:focus-visible,[role=button]:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.cnt{color:var(--acc);font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+main{flex:1;display:flex;min-height:0}
+aside{width:210px;border-right:1px solid var(--line);background:var(--panel);overflow:auto;padding:8px}
+aside button{display:flex;gap:8px;width:100%;text-align:left;background:none;border:0;color:var(--mut);padding:7px 9px;border-radius:7px;cursor:pointer;font:inherit;font-size:13px}
+aside button b{font-weight:500;color:#59627a;font-variant-numeric:tabular-nums;min-width:20px}
+aside button:hover{background:#1a1f2e;color:var(--txt)}
+aside button[aria-current=true]{background:#17302e;color:var(--acc)}
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-width:0;position:relative;
+ background-image:radial-gradient(#1b2030 1px,transparent 1px);background-size:22px 22px}
+.phone{position:relative;height:min(78vh,820px);aspect-ratio:378/820;filter:drop-shadow(0 24px 50px rgba(0,0,0,.6));border-radius:7%/3.2%;outline:1px solid #2a3046;overflow:hidden;background:#0b0f1a;touch-action:manipulation;user-select:none}
+.phone.plate{aspect-ratio:auto;height:auto;max-height:72vh;max-width:70vw;background:none}
+.scr{position:absolute;inset:0}
+.phone.plate .scr{position:relative}
+.scr img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
+.scr.fwd{animation:inR .26s ease-out}.scr.bwd{animation:inL .26s ease-out}.scr.fade{animation:fd .2s}
+@keyframes inR{from{transform:translateX(18%);opacity:0}to{transform:none;opacity:1}}
+@keyframes inL{from{transform:translateX(-18%);opacity:0}to{transform:none;opacity:1}}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.scr.fwd,.scr.bwd,.scr.fade{animation:none}}
+.hs{position:absolute;border-radius:10px;cursor:pointer}
+.show .hs,.flash .hs{background:rgba(25,211,176,.22);outline:2px solid rgba(25,211,176,.9)}
+.flash .hs{animation:pl .7s}
+@keyframes pl{from{opacity:0}30%{opacity:1}to{opacity:.0}}
+.edit .hs{cursor:move;background:rgba(25,211,176,.18);outline:2px dashed rgba(25,211,176,.9)}
+.edit .hs.sel{background:rgba(255,193,59,.25);outline:2px solid #ffc13b}
+.hs .rz{display:none;position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;background:#ffc13b;border-radius:3px;cursor:nwse-resize}
+.edit .hs.sel .rz{display:block}
+.hs .tg{display:none;position:absolute;left:0;top:-18px;font-size:10px;background:#ffc13b;color:#111;padding:1px 5px;border-radius:4px;white-space:nowrap;pointer-events:none}
+.edit .hs.sel .tg{display:block}
+.draw{position:absolute;border:2px dashed #ffc13b;background:rgba(255,193,59,.15);pointer-events:none}
+.edit .phone{cursor:crosshair}
+.lbl{font-size:12px;color:var(--mut);text-align:center;min-height:18px}
+.lbl b{color:var(--txt);font-weight:600}
+.pnl{width:260px;border-left:1px solid var(--line);background:var(--panel);padding:14px;display:none;flex-direction:column;gap:10px;overflow:auto}
+.pnl.on{display:flex}
+.pnl h2{font-size:13px;font-weight:600}
+.pnl p{font-size:12px;color:var(--mut)}
+.pnl label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+.pnl input,.pnl select{width:100%}
+.pnl .row{display:flex;gap:6px;flex-wrap:wrap}
+.pnl .danger:hover{border-color:#ff6b6b;color:#ff6b6b}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#17302e;color:var(--acc);border:1px solid var(--acc);padding:8px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media(max-width:860px){aside,.pnl{display:none!important}.phone{height:68vh}#edt{display:none}}
+</style>
+</head>
+<body>
+<header>
+ <div class="logo" aria-hidden="true">R</div>
+ <div><h1>Rendash · Protótipo</h1><small>Clique nos botões do app para navegar</small></div>
+ <div class="sp"></div>
+ <div class="tb">
+  <button id="bk" title="Voltar (Alt + ←)">‹ Voltar</button>
+  <button id="hm">Início</button>
+  <button id="sh" aria-pressed="false" title="Destacar áreas clicáveis">Áreas clicáveis</button>
+  <button id="edt" aria-pressed="false" title="Editar áreas clicáveis">Editar</button>
+ </div>
+ <div class="cnt" id="cnt" aria-live="polite"></div>
+</header>
+<main>
+ <aside id="list" aria-label="Lista de telas"></aside>
+ <section class="stage">
+  <div class="phone" id="phone"></div>
+  <div class="lbl" id="lbl"></div>
+ </section>
+ <div class="pnl" id="pnl">
+  <h2>Modo edição</h2>
+  <p>Arraste na tela para criar uma área. Clique numa área para movê-la, redimensioná-la ou trocar o destino. As alterações ficam salvas neste navegador.</p>
+  <div id="form" hidden>
+   <label>Nome<input id="fl"></label>
+   <label>Leva para<select id="ft"></select></label>
+   <div class="row"><button id="fgo">Testar</button><button id="fdel" class="danger">Excluir área</button></div>
+  </div>
+  <div class="row"><button id="exp">Exportar JSON</button><button id="imp">Importar</button><button id="rst" class="danger">Restaurar padrão</button></div>
+  <input type="file" id="file" accept="application/json" hidden>
+ </div>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(async()=>{
+const $=id=>document.getElementById(id);
+const S=await (await fetch('screens.json')).json();
+const DEF=await (await fetch('hotspots.json')).json();
+const KEY='rendash-hs-v2';
+let HS; try{HS=JSON.parse(localStorage.getItem(KEY))}catch(e){} if(!HS)HS=JSON.parse(JSON.stringify(DEF));
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(HS))}catch(e){}};
+const byN=n=>S.find(s=>s.n==n), pad=n=>String(n).padStart(2,'0');
+const ph=$('phone'),list=$('list'),lbl=$('lbl'),cnt=$('cnt');
+let cur=1,hist=[],edit=false,sel=null;
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),1800)}
+S.forEach(s=>{const b=document.createElement('button');b.dataset.n=s.n;b.innerHTML='<b>'+pad(s.n)+'</b><span>'+s.t+'</span>';b.onclick=()=>go(s.n,{push:true,dir:'fade'});list.appendChild(b)});
+const sel2=$('ft');S.forEach(s=>{const o=document.createElement('option');o.value=s.n;o.textContent=pad(s.n)+' · '+s.t;sel2.appendChild(o)});
+function render(dir){
+  const s=byN(cur);ph.classList.toggle('plate',s.n==10||s.n==13);
+  const sc=document.createElement('div');sc.className='scr '+(dir||'');
+  const im=new Image();im.src='img/'+pad(s.n)+'.webp';im.alt='Tela '+s.n+': '+s.t;sc.appendChild(im);
+  (HS[s.n]||[]).forEach((h,i)=>{
+    const d=document.createElement('div');d.className='hs';d.tabIndex=0;d.setAttribute('role','button');d.setAttribute('aria-label',(h.l||'Área')+' → tela '+h.to);
+    place(d,h);d.dataset.i=i;
+    d.innerHTML='<span class="tg"></span><span class="rz"></span>';d.querySelector('.tg').textContent=(h.l||'área')+' → '+h.to;
+    if(sel===i)d.classList.add('sel');
+    d.addEventListener('keydown',e=>{if(!edit&&(e.key=='Enter'||e.key==' ')){e.preventDefault();go(h.to,{push:true,dir:'fwd'})}});
+    sc.appendChild(d)});
+  ph.replaceChildren(sc);
+  lbl.innerHTML='<b>'+s.t+'</b> · tela '+s.n;cnt.textContent=cur+' / '+S.length;
+  [...list.children].forEach(b=>b.setAttribute('aria-current',b.dataset.n==cur));
+  list.querySelector('[aria-current=true]')?.scrollIntoView({block:'nearest'});
+  $('bk').disabled=!hist.length;
+  history.replaceState(null,'','#'+s.n);
+  form();
+}
+function place(d,h){d.style.left=h.x/378*100+'%';d.style.top=h.y/820*100+'%';d.style.width=h.w/378*100+'%';d.style.height=h.h/820*100+'%'}
+function go(n,o={}){n=+n;if(!byN(n))return;if(o.push&&n!=cur)hist.push(cur);cur=n;sel=null;render(o.dir)}
+$('bk').onclick=()=>{if(hist.length){cur=hist.pop();sel=null;render('bwd')}};
+$('hm').onclick=()=>{hist=[];go(1,{dir:'fade'})};
+$('sh').onclick=e=>{const on=e.currentTarget.getAttribute('aria-pressed')!='true';e.currentTarget.setAttribute('aria-pressed',on);ph.classList.toggle('show',on)};
+$('edt').onclick=e=>{edit=!edit;e.currentTarget.setAttribute('aria-pressed',edit);ph.classList.toggle('edit',edit);$('pnl').classList.toggle('on',edit);sel=null;render()};
+addEventListener('keydown',e=>{if(e.altKey&&e.key=='ArrowLeft'){$('bk').click()}});
+// pointer logic
+const pt=e=>{const r=ph.getBoundingClientRect();return{x:Math.max(0,Math.min(378,(e.clientX-r.left)/r.width*378)),y:Math.max(0,Math.min(820,(e.clientY-r.top)/r.height*820))}};
+let drag=null;
+ph.addEventListener('pointerdown',e=>{
+  if(ph.classList.contains('plate'))return;
+  const hsEl=e.target.closest('.hs');
+  if(!edit)return;
+  e.preventDefault();ph.setPointerCapture(e.pointerId);const p=pt(e);
+  if(hsEl){const i=+hsEl.dataset.i;sel=i;const h=HS[cur][i];
+    drag={k:e.target.classList.contains('rz')?'rz':'mv',i,sx:p.x,sy:p.y,o:{...h},el:hsEl};
+    ph.querySelectorAll('.hs').forEach(x=>x.classList.toggle('sel',x==hsEl));form();
+  }else{drag={k:'new',sx:p.x,sy:p.y};const r=document.createElement('div');r.className='draw';ph.querySelector('.scr').appendChild(r);drag.el=r}
+});
+ph.addEventListener('pointermove',e=>{
+  if(!drag)return;const p=pt(e),dx=p.x-drag.sx,dy=p.y-drag.sy;
+  if(drag.k=='mv'){const h=HS[cur][drag.i];h.x=Math.round(Math.max(0,Math.min(378-h.w,drag.o.x+dx)));h.y=Math.round(Math.max(0,Math.min(820-h.h,drag.o.y+dy)));place(drag.el,h)}
+  else if(drag.k=='rz'){const h=HS[cur][drag.i];h.w=Math.round(Math.max(16,Math.min(378-h.x,drag.o.w+dx)));h.h=Math.round(Math.max(16,Math.min(820-h.y,drag.o.h+dy)));place(drag.el,h)}
+  else{const x=Math.min(drag.sx,p.x),y=Math.min(drag.sy,p.y);drag.r={x:Math.round(x),y:Math.round(y),w:Math.round(Math.abs(dx)),h:Math.round(Math.abs(dy))};place(drag.el,drag.r)}
+});
+ph.addEventListener('pointerup',e=>{
+  if(!drag)return;const d=drag;drag=null;
+  if(d.k=='new'){if(d.r&&d.r.w>14&&d.r.h>14){(HS[cur]=HS[cur]||[]).push({...d.r,to:cur==46?1:Math.min(cur+1,46),l:'Nova área'});sel=HS[cur].length-1;save();render();toast('Área criada: escolha o destino ao lado')}else d.el.remove()}
+  else save();
+});
+// click (presentation)
+ph.addEventListener('click',e=>{
+  if(edit||ph.classList.contains('plate'))return;
+  const h=e.target.closest('.hs');
+  if(h){const t=HS[cur][+h.dataset.i].to;go(t,{push:true,dir:t<cur&&false?'bwd':'fwd'});return}
+  ph.classList.add('flash');setTimeout(()=>ph.classList.remove('flash'),700);
+});
+// edit form
+function form(){
+  const f=$('form');if(!edit||sel==null||!(HS[cur]||[])[sel]){f.hidden=true;return}
+  const h=HS[cur][sel];f.hidden=false;$('fl').value=h.l||'';$('ft').value=h.to;
+}
+$('fl').oninput=e=>{HS[cur][sel].l=e.target.value;save();const t=ph.querySelector('.hs.sel .tg');if(t)t.textContent=e.target.value+' → '+HS[cur][sel].to};
+$('ft').onchange=e=>{HS[cur][sel].to=+e.target.value;save();const t=ph.querySelector('.hs.sel .tg');if(t)t.textContent=HS[cur][sel].l+' → '+e.target.value};
+$('fdel').onclick=()=>{HS[cur].splice(sel,1);sel=null;save();render()};
+$('fgo').onclick=()=>{const t=HS[cur][sel].to;$('edt').click();go(t,{push:true,dir:'fwd'})};
+$('exp').onclick=()=>{const b=new Blob([JSON.stringify(HS,null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='rendash-hotspots.json';a.click();toast('JSON exportado')};
+$('imp').onclick=()=>$('file').click();
+$('file').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(typeof j!='object')throw 0;HS=j;save();render();toast('Importado')}catch(x){toast('Arquivo inválido')}};
+$('rst').onclick=()=>{if(confirm('Descartar as suas edições e restaurar as áreas originais?')){HS=JSON.parse(JSON.stringify(DEF));save();sel=null;render();toast('Restaurado')}};
+const h0=parseInt(location.hash.slice(1));if(byN(h0))cur=h0;
+render('fade');
+})();
+</script>
+</body>
+</html>
